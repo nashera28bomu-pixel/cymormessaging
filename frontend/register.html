@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Create your workspace — Cymor Messaging</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css" />
+<link rel="stylesheet" href="assets/css/auth.css" />
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card card">
+    <div class="logo">Cymor Messaging</div>
+    <h1>Create your workspace</h1>
+    <p class="sub">Free during early access — no card required</p>
+
+    <div class="auth-error" id="error"></div>
+    <div id="success" style="display:none; text-align:center;">
+      <p>Account created. Check your email to verify your address, then <a href="login.html">log in</a>.</p>
+    </div>
+
+    <form id="register-form">
+      <div class="field">
+        <label for="fullName">Full name</label>
+        <input id="fullName" type="text" required autocomplete="name" />
+      </div>
+      <div class="field">
+        <label for="organizationName">Business name</label>
+        <input id="organizationName" type="text" required placeholder="e.g. Sunrise Retailers" />
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" required autocomplete="email" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" required minlength="8" autocomplete="new-password" />
+      </div>
+      <button class="btn btn-primary" type="submit" id="submit-btn">Create workspace</button>
+    </form>
+
+    <div class="switch">Already have an account? <a href="login.html">Log in</a></div>
+  </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+document.getElementById("register-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorBox = document.getElementById("error");
+  const submitBtn = document.getElementById("submit-btn");
+  errorBox.classList.remove("visible");
+  submitBtn.textContent = "Creating…";
+  submitBtn.disabled = true;
+
+  try {
+    await CymorAPI.request("/auth/register", {
+      method: "POST",
+      auth: false,
+      org: false,
+      body: {
+        fullName: document.getElementById("fullName").value,
+        organizationName: document.getElementById("organizationName").value,
+        email: document.getElementById("email").value,
+        password: document.getElementById("password").value,
+      },
+    });
+
+    document.getElementById("register-form").style.display = "none";
+    document.getElementById("success").style.display = "block";
+  } catch (err) {
+    errorBox.textContent = err.message || "Something went wrong. Please try again.";
+    errorBox.classList.add("visible");
+    submitBtn.textContent = "Create workspace";
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verifying your email — Cymor Messaging</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css" />
+<link rel="stylesheet" href="assets/css/auth.css" />
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card card" style="text-align:center;">
+    <div class="logo">Cymor Messaging</div>
+    <h1 id="heading">Verifying your email…</h1>
+    <p id="message" class="sub"></p>
+    <a href="login.html" class="btn btn-primary" id="cta" style="display:none;">Go to log in</a>
+  </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+const token = new URLSearchParams(window.location.search).get("token");
+const heading = document.getElementById("heading");
+const message = document.getElementById("message");
+const cta = document.getElementById("cta");
+
+(async () => {
+  if (!token) {
+    heading.textContent = "Missing verification token";
+    message.textContent = "This link looks incomplete. Please use the link from your email.";
+    return;
+  }
+  try {
+    await CymorAPI.request("/auth/verify-email", { method: "POST", auth: false, org: false, body: { token } });
+    heading.textContent = "Email verified";
+    message.textContent = "Your address is confirmed. You're all set.";
+    cta.style.display = "inline-flex";
+  } catch (err) {
+    heading.textContent = "Verification failed";
+    message.textContent = err.message || "This link may have expired.";
+  }
+})();
+</script>
+</body>
+</html>

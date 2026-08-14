@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Documentation — Cymor Messaging</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css" />
+<style>
+  .docs-layout { display: grid; grid-template-columns: 240px 1fr; max-width: 1100px; margin: 0 auto; padding: var(--space-8) var(--space-6); gap: var(--space-8); }
+  .docs-nav a { display: block; padding: 6px 0; font-size: 14px; color: var(--text-muted); }
+  .docs-nav a:hover { color: var(--text); }
+  .docs-content h2 { margin-top: var(--space-8); font-size: 20px; }
+  .docs-content pre { background: #0d1219; border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); overflow-x: auto; font-family: var(--font-mono); font-size: 13px; }
+  .docs-content table { width: 100%; border-collapse: collapse; font-size: 14px; margin: var(--space-4) 0; }
+  .docs-content th, .docs-content td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="docs-layout">
+  <nav class="docs-nav">
+    <div class="logo" style="font-family:var(--font-display); font-weight:700; margin-bottom:16px;">Cymor Docs</div>
+    <a href="#introduction">Introduction</a>
+    <a href="#quick-start">Quick start</a>
+    <a href="#authentication">Authentication</a>
+    <a href="#messages">Sending messages</a>
+    <a href="#receiving">Receiving messages</a>
+    <a href="#contacts">Contacts</a>
+    <a href="#templates">Templates</a>
+    <a href="#otp">OTP</a>
+    <a href="#webhooks">Webhooks</a>
+    <a href="#campaigns">Campaigns</a>
+    <a href="#errors">Errors</a>
+    <a href="#rate-limits">Rate limits</a>
+    <a href="../index.html">← Back to site</a>
+  </nav>
+
+  <main class="docs-content">
+    <h1 id="introduction">Cymor Messaging API</h1>
+    <p>The Cymor Developer API lets you send WhatsApp messages, manage contacts, and receive delivery events from your own backend. All requests are authenticated with an API key and versioned under <code>/v1</code>.</p>
+
+    <h2 id="quick-start">Quick start</h2>
+    <pre>curl -X POST https://api.cymormessaging.com/v1/messages \
+  -H "X-API-Key: cym_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "whatsAppAccountId": "665f...",
+    "to": "2547XXXXXXXX",
+    "type": "text",
+    "text": { "body": "Hello from Cymor!" }
+  }'</pre>
+
+    <h2 id="authentication">Authentication</h2>
+    <p>Every request must include an <code>X-API-Key</code> header. Create a key from Dashboard → Developer → API keys. Keys are shown once at creation time.</p>
+    <pre>X-API-Key: cym_live_ab12cd34ef...</pre>
+
+    <h2 id="messages">Sending messages</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td>POST</td><td>/v1/messages</td><td>Send a text, template, image, document, audio, video, or interactive message</td></tr>
+      <tr><td>GET</td><td>/v1/messages</td><td>List messages (cursor-paginated)</td></tr>
+      <tr><td>GET</td><td>/v1/messages/:id</td><td>Fetch a single message</td></tr>
+    </table>
+    <pre>// JavaScript
+const res = await fetch("https://api.cymormessaging.com/v1/messages", {
+  method: "POST",
+  headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+  body: JSON.stringify({
+    whatsAppAccountId, to: "2547XXXXXXXX",
+    type: "text", text: { body: "Hello!" }
+  })
+});</pre>
+
+    <h2 id="receiving">Receiving messages</h2>
+    <p>Register a webhook (see below) subscribed to <code>message.received</code> to get inbound customer messages pushed to your backend in real time, instead of polling.</p>
+
+    <h2 id="contacts">Contacts</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th></tr>
+      <tr><td>GET</td><td>/v1/contacts</td></tr>
+      <tr><td>POST</td><td>/v1/contacts</td></tr>
+      <tr><td>GET</td><td>/v1/contacts/:id</td></tr>
+      <tr><td>PATCH</td><td>/v1/contacts/:id</td></tr>
+      <tr><td>DELETE</td><td>/v1/contacts/:id</td></tr>
+    </table>
+
+    <h2 id="templates">Templates</h2>
+    <p><code>GET /v1/templates</code> lists templates and their current Meta approval status (<code>PENDING</code>, <code>APPROVED</code>, <code>REJECTED</code>, etc). Only <code>APPROVED</code> templates can be sent.</p>
+
+    <h2 id="otp">OTP</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th></tr>
+      <tr><td>POST</td><td>/v1/otp/send</td></tr>
+      <tr><td>POST</td><td>/v1/otp/verify</td></tr>
+    </table>
+    <p>Codes expire after 5 minutes and allow 5 verification attempts. Resends are limited to once every 60 seconds per phone number.</p>
+
+    <h2 id="webhooks">Webhooks</h2>
+    <p>Subscribe your own URL to platform events. Every delivery includes an <code>X-Cymor-Signature</code> header — an HMAC-SHA256 of the raw body, signed with the secret shown when you create the webhook.</p>
+    <pre>{
+  "event": "message.received",
+  "data": { "conversationId": "...", "message": { ... } },
+  "timestamp": "2026-08-12T10:00:00.000Z"
+}</pre>
+
+    <h2 id="campaigns">Campaigns</h2>
+    <p>Campaigns are created and started from the dashboard today. Each recipient is processed as an independent queue job, so a campaign to 50,000 contacts never blocks and a single failed send never affects the rest.</p>
+
+    <h2 id="errors">Errors</h2>
+    <pre>{
+  "success": false,
+  "error": { "code": "WHATSAPP_NOT_CONNECTED", "message": "No active WhatsApp connection is available." },
+  "requestId": "req_abc123"
+}</pre>
+
+    <h2 id="rate-limits">Rate limits</h2>
+    <p>The public API is limited to 120 requests/minute per API key. OTP endpoints are limited to 5 requests/minute per key. Exceeding a limit returns <code>429</code> with a <code>RATE_LIMITED</code> error code.</p>
+  </main>
+</div>
+</body>
+</html>

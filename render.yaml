@@ -1,0 +1,80 @@
+services:
+  - type: web
+    name: cymor-messaging-api
+    runtime: node
+    rootDir: backend
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: CREDENTIALS_ENCRYPTION_KEY
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: cymor-messaging-redis
+          type: redis
+          property: connectionString
+      - key: META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      - key: META_VERIFY_TOKEN
+        sync: false
+      - key: META_SYSTEM_USER_ACCESS_TOKEN
+        sync: false
+      - key: META_CONFIGURATION_ID
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: API_URL
+        sync: false
+
+  - type: worker
+    name: cymor-messaging-worker
+    runtime: node
+    rootDir: worker
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: CREDENTIALS_ENCRYPTION_KEY
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: cymor-messaging-redis
+          type: redis
+          property: connectionString
+      - key: META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      - key: META_GRAPH_API_VERSION
+        value: v20.0
+
+  - type: redis
+    name: cymor-messaging-redis
+    plan: starter
+    ipAllowList: []

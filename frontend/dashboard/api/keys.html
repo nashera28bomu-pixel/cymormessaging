@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>API Keys — Cymor Messaging</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/tokens.css" />
+<link rel="stylesheet" href="../../assets/css/dashboard.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="page-head">
+      <div><h1>API keys</h1><p class="sub">Authenticate your own backend against the Cymor Developer API</p></div>
+      <button class="btn btn-primary" id="new-key-btn">Create API key</button>
+    </div>
+
+    <div id="reveal-banner" style="display:none;" class="card" style="margin-bottom:16px; border-color: var(--cyan);"></div>
+
+    <div class="card" style="padding:0; overflow-x:auto;">
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Key</th><th>Environment</th><th>Last used</th><th>Status</th><th></th></tr></thead>
+        <tbody id="keys-body"><tr><td colspan="6"><div class="skeleton" style="height:20px;"></div></td></tr></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modal" style="display:none;">
+  <div class="modal">
+    <h3>Create API key</h3>
+    <form id="key-form">
+      <div class="field"><label>Name</label><input type="text" id="key-name" required placeholder="Production backend" /></div>
+      <div class="field">
+        <label>Environment</label>
+        <select id="key-env"><option value="test">Test</option><option value="live">Live</option></select>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" id="cancel-btn">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="../../assets/js/api.js"></script>
+<script src="../../assets/js/ui.js"></script>
+<script src="../../assets/js/sidebar.js"></script>
+<script>
+requireAuth();
+renderSidebar("api-keys");
+
+async function loadKeys() {
+  const body = document.getElementById("keys-body");
+  try {
+    const { data } = await CymorAPI.request("/dashboard/api-keys");
+    if (!data.length) {
+      body.innerHTML = `<tr><td colspan="6"><div class="empty-state"><h3>No API keys yet</h3><p>Create one to start calling the Cymor Developer API from your backend.</p></div></td></tr>`;
+      return;
+    }
+    body.innerHTML = data
+      .map(
+        (k) => `<tr>
+          <td>${escapeHtml(k.name)}</td>
+          <td class="mono">${escapeHtml(k.keyPrefix)}••••••••</td>
+          <td><span class="badge badge-muted">${k.environment}</span></td>
+          <td>${formatDate(k.lastUsedAt)}</td>
+          <td>${k.revokedAt ? '<span class="badge badge-danger">Revoked</span>' : '<span class="badge badge-success">Active</span>'}</td>
+          <td>${k.revokedAt ? "" : `<button class="btn btn-secondary" data-revoke="${k._id}" style="padding:6px 12px; font-size:13px;">Revoke</button>`}</td>
+        </tr>`
+      )
+      .join("");
+
+    body.querySelectorAll("[data-revoke]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Revoke this API key? Any application using it will stop working immediately.")) return;
+        await CymorAPI.request(`/dashboard/api-keys/${btn.dataset.revoke}/revoke`, { method: "POST" });
+        loadKeys();
+      });
+    });
+  } catch (err) {
+    body.innerHTML = `<tr><td colspan="6">${escapeHtml(err.message || "Could not load API keys")}</td></tr>`;
+  }
+}
+
+document.getElementById("new-key-btn").addEventListener("click", () => (document.getElementById("modal").style.display = "flex"));
+document.getElementById("cancel-btn").addEventListener("click", () => (document.getElementById("modal").style.display = "none"));
+
+document.getElementById("key-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    const { data } = await CymorAPI.request("/dashboard/api-keys", {
+      method: "POST",
+      body: { name: document.getElementById("key-name").value, environment: document.getElementById("key-env").value },
+    });
+    document.getElementById("modal").style.display = "none";
+    document.getElementById("key-form").reset();
+
+    const banner = document.getElementById("reveal-banner");
+    banner.style.display = "block";
+    banner.innerHTML = `<strong>Copy this key now — it won't be shown again:</strong><br/><code class="mono" style="user-select:all;">${escapeHtml(data.key)}</code>`;
+
+    loadKeys();
+  } catch (err) {
+    showToast(err.message || "Could not create API key", { type: "error" });
+  }
+});
+
+loadKeys();
+</script>
+</body>
+</html>

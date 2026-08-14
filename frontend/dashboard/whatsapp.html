@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WhatsApp — Cymor Messaging</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css" />
+<link rel="stylesheet" href="../assets/css/dashboard.css" />
+<script async defer src="https://connect.facebook.net/en_US/sdk.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="page-head">
+      <div><h1>WhatsApp</h1><p class="sub">Connect and manage your WhatsApp Business accounts</p></div>
+      <button class="btn btn-primary" id="connect-btn">Connect WhatsApp</button>
+    </div>
+
+    <div id="accounts-list"><div class="skeleton" style="height:120px;"></div></div>
+  </main>
+</div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script src="../assets/js/sidebar.js"></script>
+<script>
+requireAuth();
+renderSidebar("whatsapp");
+
+let signupConfig = null;
+
+window.fbAsyncInit = function () {
+  if (!signupConfig) return;
+  FB.init({ appId: signupConfig.metaAppId, autoLogAppEvents: true, xfbml: true, version: signupConfig.graphApiVersion });
+};
+
+async function loadSignupConfig() {
+  const { data } = await CymorAPI.request("/whatsapp/signup-config");
+  signupConfig = data;
+  if (window.FB) window.fbAsyncInit();
+  if (!data.isConfigured) {
+    document.getElementById("connect-btn").disabled = true;
+    document.getElementById("connect-btn").title = "Meta credentials are not configured on this deployment yet";
+  }
+}
+
+function launchEmbeddedSignup() {
+  if (!window.FB || !signupConfig?.isConfigured) {
+    showToast("WhatsApp connection is not configured on this deployment yet.", { type: "error" });
+    return;
+  }
+
+  FB.login(
+    (response) => {
+      if (response.authResponse?.code) {
+        // The Embedded Signup message event carries the WABA ID and phone number ID.
+        window.addEventListener("message", async function handler(event) {
+          if (!event.origin.includes("facebook.com")) return;
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "WA_EMBEDDED_SIGNUP" && data.event === "FINISH") {
+              window.removeEventListener("message", handler);
+              await completeConnection(response.authResponse.code, data.data.waba_id, data.data.phone_number_id);
+            }
+          } catch { /* not a JSON message from Meta - ignore */ }
+        });
+      }
+    },
+    {
+      config_id: signupConfig.configurationId,
+      response_type: "code",
+      override_default_response_type: true,
+      extras: { setup: {}, featureType: "" },
+    }
+  );
+}
+
+async function completeConnection(code, wabaId, phoneNumberId) {
+  try {
+    await CymorAPI.request("/whatsapp/connect", { method: "POST", body: { code, wabaId, phoneNumberId } });
+    showToast("WhatsApp connected successfully");
+    loadAccounts();
+  } catch (err) {
+    showToast(err.message || "Could not complete WhatsApp connection", { type: "error" });
+  }
+}
+
+async function loadAccounts() {
+  const el = document.getElementById("accounts-list");
+  try {
+    const { data } = await CymorAPI.request("/whatsapp/status");
+    if (!data.length) {
+      el.innerHTML = `<div class="empty-state card"><h3>No WhatsApp account connected</h3><p>Click "Connect WhatsApp" to link your Meta WhatsApp Business account via Embedded Signup.</p></div>`;
+      return;
+    }
+    el.innerHTML = data
+      .map(
+        (acc) => `<div class="card" style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:600;">${escapeHtml(acc.displayPhoneNumber || acc.phoneNumberId)}</div>
+            <div style="font-size:13px; color:var(--text-muted);">${escapeHtml(acc.verifiedName || "")} · Quality: ${escapeHtml(acc.qualityRating || "unknown")}</div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge ${acc.status === "CONNECTED" ? "badge-success" : "badge-danger"}">${acc.status}</span>
+            <button class="btn btn-secondary" data-refresh="${acc._id}">Refresh</button>
+          </div>
+        </div>`
+      )
+      .join("");
+
+    el.querySelectorAll("[data-refresh]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await CymorAPI.request(`/whatsapp/${btn.dataset.refresh}/refresh`, { method: "POST" });
+        loadAccounts();
+      });
+    });
+  } catch (err) {
+    el.innerHTML = `<div class="empty-state"><h3>Couldn't load WhatsApp accounts</h3><p>${escapeHtml(err.message || "")}</p></div>`;
+  }
+}
+
+document.getElementById("connect-btn").addEventListener("click", launchEmbeddedSignup);
+loadSignupConfig();
+loadAccounts();
+</script>
+</body>
+</html>

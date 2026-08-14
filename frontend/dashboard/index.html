@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Overview — Cymor Messaging</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css" />
+<link rel="stylesheet" href="../assets/css/dashboard.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h1>Overview</h1>
+        <p class="sub">The last 30 days across your workspace</p>
+      </div>
+    </div>
+
+    <div class="stat-grid" id="stat-grid">
+      <div class="stat-card"><div class="skeleton" style="height:60px;"></div></div>
+      <div class="stat-card"><div class="skeleton" style="height:60px;"></div></div>
+      <div class="stat-card"><div class="skeleton" style="height:60px;"></div></div>
+      <div class="stat-card"><div class="skeleton" style="height:60px;"></div></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:16px;">WhatsApp connection</h3>
+      <div id="whatsapp-status">Checking connection…</div>
+    </div>
+  </main>
+</div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script src="../assets/js/sidebar.js"></script>
+<script>
+requireAuth();
+renderSidebar("overview");
+
+async function loadOverview() {
+  try {
+    const { data } = await CymorAPI.request("/analytics/overview");
+    document.getElementById("stat-grid").innerHTML = `
+      <div class="stat-card"><div class="label">MESSAGES SENT</div><div class="value">${data.messaging.sent}</div></div>
+      <div class="stat-card"><div class="label">DELIVERED</div><div class="value">${data.messaging.delivered}</div></div>
+      <div class="stat-card"><div class="label">OPEN CONVERSATIONS</div><div class="value">${data.conversations.open}</div></div>
+      <div class="stat-card"><div class="label">API REQUESTS</div><div class="value">${data.api.requests}</div></div>
+    `;
+  } catch (err) {
+    showToast(err.message || "Could not load analytics", { type: "error" });
+  }
+}
+
+async function loadWhatsAppStatus() {
+  const el = document.getElementById("whatsapp-status");
+  try {
+    const { data } = await CymorAPI.request("/whatsapp/status");
+    if (!data.length) {
+      el.innerHTML = `<p style="margin:0;">No WhatsApp account connected yet.</p><a href="whatsapp.html" class="btn btn-primary" style="margin-top:12px;">Connect WhatsApp</a>`;
+      return;
+    }
+    el.innerHTML = data
+      .map(
+        (acc) => `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
+          <div>
+            <div style="font-weight:600;">${escapeHtml(acc.displayPhoneNumber || acc.phoneNumberId)}</div>
+            <div style="font-size:13px; color:var(--text-muted);">${escapeHtml(acc.verifiedName || "")}</div>
+          </div>
+          <span class="badge ${acc.status === "CONNECTED" ? "badge-success" : "badge-danger"}">${acc.status}</span>
+        </div>`
+      )
+      .join("");
+  } catch (err) {
+    el.textContent = "Could not load WhatsApp connection status.";
+  }
+}
+
+loadOverview();
+loadWhatsAppStatus();
+</script>
+</body>
+</html>

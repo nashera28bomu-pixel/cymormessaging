@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Log in — Cymor Messaging</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css" />
+<link rel="stylesheet" href="assets/css/auth.css" />
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card card">
+    <div class="logo">Cymor Messaging</div>
+    <h1>Welcome back</h1>
+    <p class="sub">Log in to your workspace</p>
+
+    <div class="auth-error" id="error"></div>
+
+    <form id="login-form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" required autocomplete="email" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" required autocomplete="current-password" />
+      </div>
+      <button class="btn btn-primary" type="submit" id="submit-btn">Log in</button>
+    </form>
+
+    <div class="switch">Don't have an account? <a href="register.html">Create one</a></div>
+    <div class="switch"><a href="forgot-password.html">Forgot your password?</a></div>
+  </div>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.getElementById("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorBox = document.getElementById("error");
+  const submitBtn = document.getElementById("submit-btn");
+  errorBox.classList.remove("visible");
+  submitBtn.textContent = "Logging in…";
+  submitBtn.disabled = true;
+
+  try {
+    const { data } = await CymorAPI.request("/auth/login", {
+      method: "POST",
+      auth: false,
+      org: false,
+      body: {
+        email: document.getElementById("email").value,
+        password: document.getElementById("password").value,
+      },
+    });
+
+    CymorAPI.setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    if (data.organizations?.[0]) CymorAPI.setOrganizationId(data.organizations[0].organizationId);
+
+    window.location.href = "dashboard/index.html";
+  } catch (err) {
+    errorBox.textContent = err.message || "Something went wrong. Please try again.";
+    errorBox.classList.add("visible");
+    submitBtn.textContent = "Log in";
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Contacts — Cymor Messaging</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css" />
+<link rel="stylesheet" href="../assets/css/dashboard.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="page-head">
+      <div><h1>Contacts</h1><p class="sub">Everyone you can reach on WhatsApp</p></div>
+      <button class="btn btn-primary" id="new-contact-btn">Add contact</button>
+    </div>
+
+    <div class="field" style="max-width:320px;">
+      <input type="text" id="search-input" placeholder="Search by name, phone, or email…" />
+    </div>
+
+    <div class="card" style="padding:0; overflow-x:auto;">
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Phone</th><th>Tags</th><th>Last interaction</th></tr></thead>
+        <tbody id="contacts-body">
+          <tr><td colspan="4"><div class="skeleton" style="height:20px;"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modal" style="display:none;">
+  <div class="modal">
+    <h3>Add contact</h3>
+    <form id="contact-form">
+      <div class="field"><label>Name</label><input type="text" id="name" /></div>
+      <div class="field"><label>Phone</label><input type="text" id="phone" required placeholder="2547XXXXXXXX" /></div>
+      <div class="field"><label>Tags (comma separated)</label><input type="text" id="tags" /></div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" id="cancel-btn">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script src="../assets/js/sidebar.js"></script>
+<script>
+requireAuth();
+renderSidebar("contacts");
+
+async function loadContacts(search) {
+  const body = document.getElementById("contacts-body");
+  try {
+    const query = search ? `?search=${encodeURIComponent(search)}` : "";
+    const { data } = await CymorAPI.request(`/dashboard/contacts${query}`);
+    if (!data.length) {
+      body.innerHTML = `<tr><td colspan="4"><div class="empty-state"><h3>No contacts yet</h3><p>Add your first contact or import a list.</p></div></td></tr>`;
+      return;
+    }
+    body.innerHTML = data
+      .map(
+        (c) => `<tr>
+          <td>${escapeHtml(c.name || "—")}</td>
+          <td class="mono">${escapeHtml(c.phone)}</td>
+          <td>${(c.tags || []).map((t) => `<span class="badge badge-muted">${escapeHtml(t)}</span>`).join(" ")}</td>
+          <td>${formatDate(c.lastInteractionAt)}</td>
+        </tr>`
+      )
+      .join("");
+  } catch (err) {
+    body.innerHTML = `<tr><td colspan="4">${escapeHtml(err.message || "Could not load contacts")}</td></tr>`;
+  }
+}
+
+let searchTimeout;
+document.getElementById("search-input").addEventListener("input", (e) => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => loadContacts(e.target.value), 300);
+});
+
+document.getElementById("new-contact-btn").addEventListener("click", () => (document.getElementById("modal").style.display = "flex"));
+document.getElementById("cancel-btn").addEventListener("click", () => (document.getElementById("modal").style.display = "none"));
+
+document.getElementById("contact-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await CymorAPI.request("/dashboard/contacts", {
+      method: "POST",
+      body: {
+        name: document.getElementById("name").value || undefined,
+        phone: document.getElementById("phone").value,
+        tags: document.getElementById("tags").value ? document.getElementById("tags").value.split(",").map((t) => t.trim()) : undefined,
+      },
+    });
+    document.getElementById("modal").style.display = "none";
+    document.getElementById("contact-form").reset();
+    showToast("Contact added");
+    loadContacts();
+  } catch (err) {
+    showToast(err.message || "Could not add contact", { type: "error" });
+  }
+});
+
+loadContacts();
+</script>
+</body>
+</html>

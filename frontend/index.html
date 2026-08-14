@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cymor Messaging — WhatsApp infrastructure for modern businesses</title>
+<meta name="description" content="Connect your WhatsApp Business account, talk to customers from a shared inbox, automate conversations, and integrate WhatsApp into your own apps with one API." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css" />
+<link rel="stylesheet" href="assets/css/landing.css" />
+</head>
+<body>
+
+<nav class="nav">
+  <div class="container nav-inner">
+    <div class="logo">Cymor Messaging</div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#developers">Developer API</a>
+      <a href="docs/index.html">Docs</a>
+      <a href="login.html">Log in</a>
+      <a href="register.html" class="btn btn-primary" style="padding:9px 18px;font-size:14px;">Get started</a>
+    </div>
+  </div>
+</nav>
+
+<header class="container hero">
+  <div>
+    <div class="eyebrow">WhatsApp Business Platform infrastructure</div>
+    <h1>WhatsApp messaging infrastructure for modern businesses</h1>
+    <p class="lede">Connect your WhatsApp Business account, talk to customers from one shared inbox, automate conversations, and integrate WhatsApp into your own product through a single API — built on Meta's official Cloud API, never scraped or automated.</p>
+    <div class="hero-ctas">
+      <a href="register.html" class="btn btn-primary">Get started</a>
+      <a href="docs/index.html" class="btn btn-secondary">View documentation</a>
+    </div>
+  </div>
+
+  <div class="signal-panel" aria-hidden="true">
+    <div class="bubble-stage">
+      <div class="chat-bubble">
+        <div class="from">+254 7•• •••  •23 · WhatsApp</div>
+        Hi, is the blue jacket in size M still available?
+      </div>
+    </div>
+    <div class="flow-arrow">↓ webhook</div>
+    <div class="json-stage">
+      <div class="json-card">{<br>&nbsp;&nbsp;<span class="key">"event"</span>: <span class="val">"message.received"</span>,<br>&nbsp;&nbsp;<span class="key">"from"</span>: <span class="val">"2547XXXXXXXX"</span>,<br>&nbsp;&nbsp;<span class="key">"type"</span>: <span class="val">"text"</span>,<br>&nbsp;&nbsp;<span class="key">"contact"</span>: <span class="val">"tagged: vip"</span><br>}</div>
+    </div>
+  </div>
+</header>
+
+<div class="logos-strip">
+  <span>Meta Cloud API</span><span>·</span><span>MongoDB Atlas</span><span>·</span><span>Redis Queues</span><span>·</span><span>Cloudinary</span><span>·</span><span>Render + Vercel</span>
+</div>
+
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">What businesses get</div>
+      <h2>Everything a team needs to run WhatsApp at scale</h2>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card"><div class="icon">📥</div><h3>Shared team inbox</h3><p>One inbox for the whole team — assign conversations, tag customers, and never lose a message in someone's personal phone.</p></div>
+      <div class="feature-card"><div class="icon">⚡</div><h3>Automations</h3><p>Keyword triggers, welcome flows, and tagging rules that run the moment a customer messages you — no code required.</p></div>
+      <div class="feature-card"><div class="icon">📣</div><h3>Campaigns</h3><p>Send approved templates to a segment of contacts, queued and rate-aware, with delivery and read stats per send.</p></div>
+      <div class="feature-card"><div class="icon">🔐</div><h3>One-time codes</h3><p>Verify a phone number over WhatsApp with a secure, rate-limited OTP endpoint — built for signup and checkout flows.</p></div>
+      <div class="feature-card"><div class="icon">🧩</div><h3>Developer API</h3><p>Send messages, manage contacts, and receive delivery events from your own backend with a versioned REST API.</p></div>
+      <div class="feature-card"><div class="icon">👥</div><h3>Team roles</h3><p>Owner, Admin, Developer, Agent, and Analyst roles keep access scoped to what each person actually needs.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="architecture">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">How it fits together</div>
+      <h2>An infrastructure layer, not another inbox app</h2>
+    </div>
+    <div class="flow-diagram">Your business
+    │
+    ▼
+<span class="accent">Cymor dashboard</span>  ──┬──  <span class="accent2">Developer API</span>
+    │              │
+    └──────┬───────┘
+           ▼
+   Messaging engine → Redis queue → Worker
+           │
+           ▼
+   <span class="accent">WhatsApp Cloud API</span> (official, Meta-operated)
+           │
+           ▼
+       Your customers</div>
+  </div>
+</section>
+
+<section class="section" id="developers">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">For developers</div>
+      <h2>Send a WhatsApp message in one request</h2>
+    </div>
+    <pre class="code-panel"><span class="comment">// POST https://api.cymormessaging.com/v1/messages</span>
+curl -X POST https://api.cymormessaging.com/v1/messages \
+  -H <span class="string">"X-API-Key: cym_live_..."</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  -d <span class="string">'{
+    "whatsAppAccountId": "665f...",
+    "to": "2547XXXXXXXX",
+    "type": "text",
+    "text": { "body": "Your order has shipped." }
+  }'</span></pre>
+  </div>
+</section>
+
+<div class="cta-band container">
+  <h2>Connect your WhatsApp Business account today</h2>
+  <p>No payments, no lock-in required to start building. Free during early access.</p>
+  <a href="register.html" class="btn btn-primary">Create your workspace</a>
+</div>
+
+<footer class="footer container">
+  <span>© 2026 Cymor Messaging — a Cymor Tech Services product</span>
+  <span class="signature">Built by Legendary Smiley Cymor — no one does it better than me.</span>
+</footer>
+
+</body>
+</html>

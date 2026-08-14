@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inbox — Cymor Messaging</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/tokens.css" />
+<link rel="stylesheet" href="../assets/css/dashboard.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main" style="max-width:100%;">
+    <div class="page-head">
+      <div><h1>Inbox</h1><p class="sub">Every customer conversation, in one place</p></div>
+    </div>
+
+    <div class="inbox-layout">
+      <div class="conversation-list" id="conversation-list">
+        <div style="padding:16px;" class="skeleton" style="height:60px;"></div>
+      </div>
+
+      <div class="thread-panel" id="thread-panel">
+        <div class="empty-state">
+          <h3>Select a conversation</h3>
+          <p>Pick a conversation from the list to see the message history.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script src="../assets/js/sidebar.js"></script>
+<script>
+requireAuth();
+renderSidebar("inbox");
+
+let activeConversationId = null;
+let conversations = [];
+
+async function loadConversations() {
+  try {
+    const { data } = await CymorAPI.request("/conversations?status=OPEN");
+    conversations = data;
+    renderConversationList();
+  } catch (err) {
+    showToast(err.message || "Could not load conversations", { type: "error" });
+  }
+}
+
+function renderConversationList() {
+  const el = document.getElementById("conversation-list");
+  if (!conversations.length) {
+    el.innerHTML = `<div class="empty-state"><h3>No conversations yet</h3><p>They'll show up here the moment a customer messages you.</p></div>`;
+    return;
+  }
+  el.innerHTML = conversations
+    .map(
+      (c) => `<div class="conversation-item ${c._id === activeConversationId ? "active" : ""}" data-id="${c._id}">
+        <div class="name">${escapeHtml(c.contactId?.name || c.contactId?.phone || "Unknown")} ${c.unreadCount > 0 ? '<span class="unread-dot"></span>' : ""}</div>
+        <div class="preview">${escapeHtml(c.lastMessagePreview || "No messages yet")}</div>
+      </div>`
+    )
+    .join("");
+
+  el.querySelectorAll(".conversation-item").forEach((item) => {
+    item.addEventListener("click", () => openConversation(item.dataset.id));
+  });
+}
+
+async function openConversation(id) {
+  activeConversationId = id;
+  renderConversationList();
+  await CymorAPI.request(`/conversations/${id}/read`, { method: "POST" }).catch(() => {});
+
+  const panel = document.getElementById("thread-panel");
+  panel.innerHTML = `<div class="thread-messages"><div class="skeleton" style="height:100%;"></div></div>`;
+
+  try {
+    const [{ data: conversation }, { data: messages }] = await Promise.all([
+      CymorAPI.request(`/conversations/${id}`),
+      CymorAPI.request(`/dashboard/messages?conversationId=${id}`),
+    ]);
+    renderThread(conversation, messages.reverse());
+  } catch (err) {
+    panel.innerHTML = `<div class="empty-state"><h3>Couldn't load this conversation</h3><p>${escapeHtml(err.message || "")}</p></div>`;
+  }
+}
+
+function renderThread(conversation, messages) {
+  const panel = document.getElementById("thread-panel");
+  panel.innerHTML = `
+    <div class="thread-head">
+      <div>
+        <div style="font-weight:600;">${escapeHtml(conversation.contactId?.name || conversation.contactId?.phone)}</div>
+        <div style="font-size:13px; color:var(--text-muted);">${escapeHtml(conversation.contactId?.phone || "")}</div>
+      </div>
+      <span class="badge badge-success">${conversation.status}</span>
+    </div>
+    <div class="thread-messages" id="thread-messages">
+      ${messages.map(renderBubble).join("")}
+    </div>
+    <form class="thread-composer" id="composer">
+      <input type="text" placeholder="Type a message…" id="composer-input" required />
+      <button class="btn btn-primary" type="submit">Send</button>
+    </form>
+  `;
+
+  const container = document.getElementById("thread-messages");
+  container.scrollTop = container.scrollHeight;
+
+  document.getElementById("composer").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const input = document.getElementById("composer-input");
+    const body = input.value.trim();
+    if (!body) return;
+    input.value = "";
+    try {
+      await CymorAPI.request("/dashboard/messages", {
+        method: "POST",
+        body: {
+          whatsAppAccountId: conversation.whatsAppAccountId,
+          to: conversation.contactId.phone,
+          type: "text",
+          text: { body },
+          conversationId: conversation._id,
+          contactId: conversation.contactId._id,
+        },
+      });
+      container.insertAdjacentHTML("beforeend", renderBubble({ direction: "OUTBOUND", type: "text", content: { body }, createdAt: new Date().toISOString() }));
+      container.scrollTop = container.scrollHeight;
+    } catch (err) {
+      showToast(err.message || "Message failed to send", { type: "error" });
+    }
+  });
+}
+
+function renderBubble(msg) {
+  const text = msg.type === "text" ? msg.content?.body : `[${msg.type}]`;
+  return `<div class="msg-bubble ${msg.direction === "OUTBOUND" ? "outbound" : "inbound"}">
+    ${escapeHtml(text || "")}
+    <div class="msg-time">${formatDate(msg.createdAt)}</div>
+  </div>`;
+}
+
+// Realtime: new inbound messages and status updates land here without a page refresh.
+function connectRealtime() {
+  const { accessToken } = CymorAPI.getTokens();
+  const socket = io(window.CYMOR_API_URL ? window.CYMOR_API_URL.replace("/api/v1", "") : "http://localhost:4000", {
+    auth: { accessToken },
+  });
+
+  socket.on("connect", () => socket.emit("join-organization", CymorAPI.getOrganizationId()));
+
+  socket.on("message:received", ({ conversationId, message }) => {
+    loadConversations();
+    if (conversationId === activeConversationId) {
+      const container = document.getElementById("thread-messages");
+      if (container) {
+        container.insertAdjacentHTML("beforeend", renderBubble(message));
+        container.scrollTop = container.scrollHeight;
+      }
+    } else {
+      showToast("New message received");
+    }
+  });
+}
+
+loadConversations();
+connectRealtime();
+</script>
+</body>
+</html>
